@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<title>
+	D3 Template
+	</title>
+
+	<style>
+
+		.axis path,
+		.axis line {
+		    fill: none;
+		    stroke: black;
+		    shape-rendering: crispEdges;
+		}
+
+		.axis text {
+		    font-family: sans-serif;
+		    font-size: 11px;
+		}
+
+		.label {
+			font-family: sans-serif;
+			font-size: 11px;
+		}
+
+		.title {
+			font-family: Lato;
+			font-size: 18px;
+		}
+
+	</style>
+
+</head>
+<body>
+
+	<script type='text/javascript'>
+
+	var pheight = 1000;
+	var pwidth = 600;
+	var xcushion = 0.15;
+	var ycushion = 0.15;
+
+	var minh = (ycushion / 2) * pheight;
+	var maxh = (1-(ycushion / 2)) * pheight;
+	var minw = (xcushion / 2) * pwidth;
+	var maxw = (1-(xcushion / 2)) * pwidth;
+
+	var svg = d3.select("body")
+				.append('svg')
+				.attr({
+					width: pwidth,
+					height: pheight
+				});
+
+	svg.append('rect')
+		.attr({
+			class: 'outline',
+			x: 0,
+			y: 0,
+			height: pheight,
+			width: pwidth,
+			stroke: 'black',
+			fill: 'white'
+		});
+
+	d3.csv("history.csv", function(error, data){
+			if( error ){
+				console.log(error);
+			} else {
+				console.log(data.length + " elements in dataset");
+			}
+
+			var sortedData = data.sort(function(a,b){return d3.descending(parseInt(a.visits,10), parseInt(b.visits,10)); }).slice(0,50);
+
+			var yScale = d3.scale.ordinal()
+				.domain(d3.range(sortedData.length))
+				.rangeRoundBands([minh, maxh], 0.05);
+
+			var xScale = d3.scale.log()
+				.domain([ 1, d3.max(sortedData, function(d){return parseInt(d.visits,10);}) ])
+				.range([minw, maxw]);
+
+			var xAxis = d3.svg.axis()
+				.scale(xScale) 
+				.orient('top')
+				.ticks(25);
+
+			var yAxis = d3.svg.axis()
+				.scale(yScale)
+				.orient('left');
+
+			svg.selectAll('.bar')
+				.data(sortedData)
+				.enter()
+				.append('rect')
+				.attr('class','bar')
+				.attr('y', function(d, i){ return yScale(i); })
+				.attr('x', minw)
+				.attr('height', yScale.rangeBand())
+				.attr('width', function(d){ return xScale(d.visits) - minw; })
+				.attr('value', function(d){ return d.visits; })
+				.attr('fill','blue');
+
+			svg.selectAll(".label")
+				.data(sortedData)
+				.enter()
+				.append('text')
+				.attr({
+					class: 'label',
+					fill: 'white',
+					x: minw + 5,
+					y: function(d, i){ return yScale(i) + yScale.rangeBand() - 4; }
+				})
+				.text(function(d){return d.site;})
+				;
+
+			//y axis
+			svg.append('g')
+				.call(yAxis)
+				.attr('class', 'axis')
+				.attr('transform', 'translate(' + minw + ',0)');
+
+			// x axis
+			svg.append('g')
+				.call(xAxis)
+				.attr('class', 'axis')
+				.attr('transform', 'translate(0,' + minh + ')')
+				// powers of 10 borrwed from http://bl.ocks.org/mbostock/6738229
+				.selectAll(".tick text")
+			    	.text(null)
+			  		.filter(powerOfTen)
+			    .text(10)
+			  		.append("tspan")
+			    	.attr("dy", "-.7em")
+			    .text(function(d) { return Math.round(Math.log(d) / Math.LN10); });
+
+			function powerOfTen(d) {
+			  return d / Math.pow(10, Math.ceil(Math.log(d) / Math.LN10 - 1e-12)) === 1;
+			};
+
+			// title
+			svg.append("text")
+				.attr({
+					x: pwidth / 2, 
+					y: minh * .3,
+					'text-anchor': 'middle',
+					class: 'title'
+				})
+				.text("Visits to Top 50 Sites in My Recent Web History");
+
+			svg.append("text")
+				.attr({
+					x: pwidth / 2, 
+					y: minh + 12,
+					'text-anchor': 'middle',
+					style: 'font-size: 12px;'
+				})
+				.text("Base10 Log of Visits");
+
+			// svg.selectAll('text')
+			// 	.data(sortedData)
+			// 	.enter()
+			// 	.append('text')
+			// 	.text(function(d){return d.site;})
+			// 	.attr({
+			// 		"x": function(d, i){ return xScale(i); },
+			// 		"y": function(d){ return maxh - yScale(d.visits); }
+			// 	});
+
+	});
+
+
+	</script>
+</body>
+</html>
