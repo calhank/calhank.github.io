@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+	<script src="scripts/d3.min.js" charset="utf-8"></script>
 	<title>
 	Nothing Embarrasing Here...
 	</title>
@@ -21,11 +21,16 @@
 		    font-size: 11px;
 		}
 
+		#yaxis text,
+		#yaxis path {
+			fill: black;
+		}
+
 		.label {
 			font-family: sans-serif;
-			font-size: 11px;
 			fill: black;
 			font-weight: bold;
+			pointer-events: none;
 		}
 
 		.title {
@@ -34,8 +39,29 @@
 			font-size: 18px;
 		}
 
-		.bar {
-			fill: rgb(240,0,0);
+		div.tooltip {	
+		    position: absolute;			
+		    text-align: center;					
+		    padding: 10px;			
+		    background: rgb(200,200,200);	
+		    border: 0px;		
+		    border-radius: 8px;
+		    pointer-events: none;			
+		}
+
+		.ttipTable {
+			/*text-align: right;*/
+		}
+
+		.ttipText {
+			text-align: left;
+			font: 14px sans-serif bold;
+			font-weight: bold;
+		}
+
+		.ttipTitle {
+			text-align: right;
+			font: 14px sans-serif;
 		}
 
 	</style>
@@ -43,24 +69,70 @@
 </head>
 <body>
 
+	<div id='buttons'>
+		  <label for="numRecords">
+		         Enter Number of Sites to Display
+		  </label>
+		  <br>
+		  	<input id="numRecords" type="text" min="10" max="150" value=30>
+		   <span id='numRecordsValue'>30</span>
+	</div>
+	<br>
+
+	<div id="plot"><!-- plot goes here --></div>
+
 	<script type='text/javascript'>
 
-	var pheight = 1000;
+	var pheight = 800;
 	var pwidth = 600;
 	var xcushion = 0.15;
 	var ycushion = 0.15;
 
-	var minh = (ycushion / 2) * pheight;
+	// var minh = (ycushion / 2) * pheight;
+	var minh = 90;
 	var maxh = (1-(ycushion / 2)) * pheight;
 	var minw = (xcushion / 2) * pwidth;
 	var maxw = (1-(xcushion / 2)) * pwidth;
 
-	var svg = d3.select("body")
+	var svg = d3.select("#plot")
 				.append('svg')
 				.attr({
 					width: pwidth,
 					height: pheight
 				});
+
+	// init tooltip
+	// toolltip adapted from http://bl.ocks.org/d3noob/a22c42db65eb00d4e369
+	var ttip = d3.select('body').append("div")	
+	    .attr("class", "tooltip")			
+	    .style("opacity", 0);
+
+	var ttipTable = ttip.append("table")
+		.attr("class","ttipTable");
+
+	var row = ttipTable.append('tr');
+	row.append('td').attr('class','ttipTitle').text("Site");
+	var ttipSiteName = row.append('td')
+		.attr('id','siteName')
+		.attr('class','ttipText');
+
+	var row = ttipTable.append('tr');
+	row.append('td').attr('class','ttipTitle').text("Visits");
+	var ttipSiteVisits = row.append('td')
+		.attr('id','siteVisits')
+		.attr('class','ttipText');
+
+	var row = ttipTable.append('tr');
+	row.append('td').attr('class','ttipTitle').text("Unique URLs");
+	var ttipUniqueUrls = row.append('td')
+		.attr('id','uniqueUrls')
+		.attr('class','ttipText');
+
+	var row = ttipTable.append('tr');
+	row.append('td').attr('class','ttipTitle').text("Rank");
+	var ttipRank = row.append('td')
+		.attr('id','rank')
+		.attr('class','ttipText');
 
 	svg.append('rect')
 		.attr({
@@ -80,14 +152,16 @@
 				console.log(data.length + " elements in dataset");
 			}
 
-			var sortedData = data.sort(function(a,b){return d3.descending(parseInt(a.visits,10), parseInt(b.visits,10)); }).slice(0,50);
+			var sortedData= data.sort(function(a,b){return d3.descending(parseInt(a.visits,10), parseInt(b.visits,10)); }).filter(function(d){return d.visits > 1;});
+
+			var sortedDataSlice = sortedData.slice(0,30);
 
 			var yScale = d3.scale.ordinal()
-				.domain(d3.range(sortedData.length))
-				.rangeRoundBands([minh, maxh], 0.05);
+				.domain(d3.range(sortedDataSlice.length))
+				.rangeBands([minh, maxh], 0.1);
 
 			var xScale = d3.scale.log()
-				.domain([ 1, d3.max(sortedData, function(d){return parseInt(d.visits,10);}) ])
+				.domain([ 1, d3.max(sortedDataSlice, function(d){return parseInt(d.visits,10);}) ])
 				.range([minw, maxw]);
 
 			var xAxis = d3.svg.axis()
@@ -99,19 +173,51 @@
 				.scale(yScale)
 				.orient('left');
 
+			// bar graph bars
 			svg.selectAll('.bar')
-				.data(sortedData)
+				.data(sortedDataSlice)
 				.enter()
+				.append('g')
 				.append('rect')
 				.attr('class','bar')
 				.attr('y', function(d, i){ return yScale(i); })
 				.attr('x', minw)
 				.attr('height', yScale.rangeBand())
 				.attr('width', function(d){ return xScale(d.visits) - minw; })
-				.attr('value', function(d){ return d.visits; });
+				.attr('fill', 'rgb(240,0,0)')
+				.on('mouseover', function(d,i){					
+					// set tooltip text values
+					ttipRank.text(i);					
+					ttipSiteName.text(d.site);
+					ttipSiteVisits.text(d.visits);
+					ttipUniqueUrls.text(d.uniq_urls);
+					//  enter tooltip
+					ttip.transition()
+						.duration(50)
+						.style({
+							'opacity':.95,
+							'left': (d3.event.pageX) + 'px',
+							'top': (d3.event.pageY - 28) + 'px',
+						})
+					// highlight bar
+					d3.select(this)
+						.attr('fill', 'rgb(100,200,240)');
+				})
+				.on('mouseout', function(){
+					// exit tooltip
+					ttip.transition()
+						.duration(500)
+						.style({opacity: 0})
+					// unhighlight bar
+					d3.select(this)
+						.transition()
+						.duration(50)
+						.attr('fill', 'rgb(240,0,0)');
+				});
 
+			// bar graph labels
 			svg.selectAll(".label")
-				.data(sortedData)
+				.data(sortedDataSlice)
 				.enter()
 				.append('text')
 				.attr({
@@ -119,13 +225,143 @@
 					x: minw + 5,
 					y: function(d, i){ return yScale(i) + yScale.rangeBand() - 4; }
 				})
-				.text(function(d){return d.site;})
-				;
+				.style('font-size', function(){
+					if( yScale.rangeBand() >= 11 ){
+						return yScale.rangeBand() - 5;
+					} else {
+						return 0;
+					}
+				})
+				.text(function(d){return d.site;});
+
+			// Animated addng and subtracting of bars
+			var recordsSlider = d3.select('#numRecords')
+				.attr('max', sortedData.length);
+
+			recordsSlider.on('change', function(){
+				number = d3.min([this.value, sortedData.length]);
+				d3.select('#numRecordsValue').text(number);
+
+				// update data
+				var sortedDataSlice = sortedData.slice(0,number);
+
+				// update bars
+				var bars = svg.selectAll('rect.bar')
+					.data(sortedDataSlice);
+
+				bars.enter()
+					// .transition()
+					// .duration(500)
+					.append('rect')
+					.attr('class','bar')
+					// .attr('y', function(d, i){ return yScale(i); })
+					// .attr('y', function(d, i){ return pheight + yScale(i); })
+					.attr('y', maxh)
+					.attr('x', minw)
+					.style('opacity',0)
+					.attr('height', yScale.rangeBand())
+					.attr('width', function(d){ return xScale(d.visits) - minw; })
+					.attr('fill', 'rgb(240,0,0)')
+					.on('mouseover', function(d,i){					
+						// set tooltip text values
+						ttipRank.text(i);
+						ttipSiteName.text(d.site);
+						ttipSiteVisits.text(d.visits);
+						ttipUniqueUrls.text(d.uniq_urls);
+						//  enter tooltip
+						ttip.transition()
+							.duration(50)
+							.style({
+								'opacity':.95,
+								'left': (d3.event.pageX) + 'px',
+								'top': (d3.event.pageY - 28) + 'px',
+							})
+						// highlight bar
+						d3.select(this)
+							.attr('fill', 'rgb(100,200,240)');
+					})
+					.on('mouseout', function(){
+						// exit tooltip
+						ttip.transition()
+							.duration(500)
+							.style({opacity: 0})
+						// unhighlight bar
+						d3.select(this)
+							.transition()
+							.duration(50)
+							.attr('fill', 'rgb(240,0,0)');
+					});
+
+					// update y scale
+					yScale.domain(d3.range(sortedDataSlice.length));
+
+					bars.transition()
+						.duration(500)
+						.style('opacity',1)
+						.attr('y', function(d, i){ return yScale(i); })
+						.attr('height', yScale.rangeBand())
+						.attr('width', function(d){ return xScale(d.visits) - minw; });
+
+					bars.exit()
+						.transition()
+						.duration(500)
+						.attr('y', maxh)
+						.style('opacity',0)
+						.attr('height',0)
+						.remove();
+
+					// update text
+					var labels = svg.selectAll(".label")
+						.data(sortedDataSlice);
+
+					labels.enter()
+						.append('text')
+						.attr({
+							class: 'label',
+							x: minw + 5,
+							y: maxh
+						})
+						.style('font-size',0)
+						.style('opacity',0)
+						.text(function(d){return d.site;});
+
+					labels.transition()
+						.duration(500)
+						.attr({
+							x: minw + 5,
+							y: function(d, i){ return yScale(i) + yScale.rangeBand() * .7; }
+						})
+						.style('font-size', function(){
+							if( yScale.rangeBand() >= 6 ){
+								return yScale.rangeBand() * .7;
+							} else {
+								return 0;
+							}
+						})
+						.style('opacity', function(){
+							if( yScale.rangeBand() >= 6 ){
+								return 1;
+							} else {
+								return 0;
+							}
+						})
+						.text(function(d){return d.site;});
+
+					labels.exit()
+						.transition()
+						.duration(500)
+						.attr('y', maxh)
+						.style('font-size',0)
+						.style('opacity', 0)
+						.remove();
+				
+			})
 
 			//y axis
 			svg.append('g')
 				.call(yAxis)
 				.attr('class', 'axis')
+				.attr('id','yaxis')
 				.attr('transform', 'translate(' + minw + ',0)');
 
 			// x axis
@@ -156,18 +392,18 @@
 				})
 				.text("Visits to Top 50 Sites in My Recent Web History");
 
+			// x-axis label
 			svg.append("text")
 				.attr({
 					x: pwidth / 2, 
-					y: minh + 12,
+					y: minh *.4 + 18,
 					'text-anchor': 'middle',
-					style: 'font-size: 12px;fill:white;'
+					style: 'font-size:12px;fill:white;'
 				})
 				.text("Base10 Log of Visits");
 
 	});
-
-
 	</script>
+
 </body>
 </html>
