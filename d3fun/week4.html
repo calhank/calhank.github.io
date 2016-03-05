@@ -11,11 +11,12 @@
 		.axis path,
 		.axis line {
 		    fill: none;
-		    stroke: black;
+		    stroke: white;
 		    shape-rendering: crispEdges;
 		}
 
 		.axis text {
+			fill: white;
 		    font-family: sans-serif;
 		    font-size: 11px;
 		}
@@ -23,11 +24,18 @@
 		.label {
 			font-family: sans-serif;
 			font-size: 11px;
+			fill: black;
+			font-weight: bold;
 		}
 
 		.title {
 			font-family: Lato;
+			fill: white;
 			font-size: 18px;
+		}
+
+		.bar {
+			fill: rgb(240,0,0);
 		}
 
 	</style>
@@ -62,7 +70,7 @@
 			height: pheight,
 			width: pwidth,
 			stroke: 'black',
-			fill: 'white'
+			fill: 'black'
 		});
 
 	d3.csv("history.csv", function(error, data){
@@ -100,8 +108,7 @@
 				.attr('x', minw)
 				.attr('height', yScale.rangeBand())
 				.attr('width', function(d){ return xScale(d.visits) - minw; })
-				.attr('value', function(d){ return d.visits; })
-				.attr('fill','blue');
+				.attr('value', function(d){ return d.visits; });
 
 			svg.selectAll(".label")
 				.data(sortedData)
@@ -109,7 +116,6 @@
 				.append('text')
 				.attr({
 					class: 'label',
-					fill: 'white',
 					x: minw + 5,
 					y: function(d, i){ return yScale(i) + yScale.rangeBand() - 4; }
 				})
@@ -127,7 +133,7 @@
 				.call(xAxis)
 				.attr('class', 'axis')
 				.attr('transform', 'translate(0,' + minh + ')')
-				// powers of 10 borrwed from http://bl.ocks.org/mbostock/6738229
+				// powers of 10 code borrowed from http://bl.ocks.org/mbostock/6738229
 				.selectAll(".tick text")
 			    	.text(null)
 			  		.filter(powerOfTen)
@@ -155,7 +161,7 @@
 					x: pwidth / 2, 
 					y: minh + 12,
 					'text-anchor': 'middle',
-					style: 'font-size: 12px;'
+					style: 'font-size: 12px;fill:white;'
 				})
 				.text("Base10 Log of Visits");
 
